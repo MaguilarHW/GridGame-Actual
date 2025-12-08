@@ -1,22 +1,41 @@
-import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 
-// Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyA0GGjmup3q9Epp7Ln3_og53X2jEVmO_AQ",
-  authDomain: "gridgame-1765217915.firebaseapp.com",
-  projectId: "gridgame-1765217915",
-  storageBucket: "gridgame-1765217915.firebasestorage.app",
-  messagingSenderId: "464040611716",
-  appId: "1:464040611716:web:418c97f3f693da174b57d1"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase
+const missingConfig = Object.entries(firebaseConfig)
+  .filter(([, value]) => !value)
+  .map(([key]) => key);
+
+if (missingConfig.length) {
+  throw new Error(`Missing Firebase env vars: ${missingConfig.join(", ")}`);
+}
+
+// Validate Firebase config format
+if (!firebaseConfig.apiKey || !firebaseConfig.apiKey.startsWith("AIza")) {
+  console.error("Invalid Firebase API key format");
+}
+
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firebase services
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-export default app;
+// Initialize Auth with error handling
+let auth;
+let db;
+try {
+  auth = getAuth(app);
+  db = getFirestore(app);
+} catch (error) {
+  console.error("Firebase initialization error:", error);
+  throw error;
+}
 
+export { auth, db };
+export default app;
