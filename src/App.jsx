@@ -1,49 +1,949 @@
-import { useState, useEffect } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
+import { useState, useEffect, useCallback } from 'react'
+import { collection, addDoc, query, orderBy, limit, onSnapshot, doc, setDoc, getDoc, updateDoc } from 'firebase/firestore'
+import { signInAnonymously, onAuthStateChanged } from 'firebase/auth'
 import './App.css'
 import { auth, db } from './firebase'
 
-function App() {
-  const [count, setCount] = useState(0)
-  const [firebaseConnected, setFirebaseConnected] = useState(false)
+const GRID_SIZE = 5;
 
+// Generate game code
+const generateGameCode = () => {
+  return Math.random().toString(36).substring(2, 8).toUpperCase();
+};
+
+// Card abilities
+const CARD_ABILITIES = {
+  CLEAR_ROW: 'clear_row',
+  CLEAR_COL: 'clear_col',
+  DOUBLE_ADJACENT: 'double_adjacent',
+  CLEAR_RANDOM: 'clear_random',
+  DOUBLE_POINTS: 'double_points',
+};
+
+// Farm card types with synergies and abilities
+const CARD_TYPES = {
+  // Crops
+  WHEAT: { 
+    name: 'Wheat', emoji: '🌾', basePoints: 2, type: 'crop', color: '#F5DEB3',
+    description: 'Basic crop. Works well near Mills for processing.',
+    ability: null,
+    strategy: 'Place Wheat near Mills for +3 bonus. Great for early game setup.'
+  },
+  CORN: { 
+    name: 'Corn', emoji: '🌽', basePoints: 3, type: 'crop', color: '#FFD700',
+    description: 'High-value crop. Pairs excellently with Mills.',
+    ability: null,
+    strategy: 'Corn + Mill = 6 points! Place strategically to maximize synergy.'
+  },
+  CARROT: { 
+    name: 'Carrot', emoji: '🥕', basePoints: 2, type: 'crop', color: '#FF8C00',
+    description: 'Fast-growing crop. Benefits from Wells and Scarecrows.',
+    ability: null,
+    strategy: 'Use Carrots to fill gaps and create crop clusters for +1 bonuses.'
+  },
+  POTATO: { 
+    name: 'Potato', emoji: '🥔', basePoints: 2, type: 'crop', color: '#DEB887',
+    description: 'Staple crop. Versatile and easy to synergize.',
+    ability: null,
+    strategy: 'Potatoes work well in groups. Place multiple together for adjacency bonuses.'
+  },
+  TOMATO: { 
+    name: 'Tomato', emoji: '🍅', basePoints: 3, type: 'crop', color: '#FF6347',
+    description: 'Valuable crop. Thrives near Greenhouses.',
+    ability: null,
+    strategy: 'Tomatoes + Greenhouse = 6 points. Great mid-game value.'
+  },
+  PUMPKIN: { 
+    name: 'Pumpkin', emoji: '🎃', basePoints: 3, type: 'crop', color: '#FF8C00',
+    description: 'Seasonal crop. High base value.',
+    ability: null,
+    strategy: 'Pumpkins are solid standalone cards. Use when you need immediate points.'
+  },
+  STRAWBERRY: { 
+    name: 'Strawberry', emoji: '🍓', basePoints: 2, type: 'crop', color: '#FF69B4',
+    description: 'Delicate crop. Benefits from careful placement.',
+    ability: null,
+    strategy: 'Place Strawberries near other crops for type bonuses.'
+  },
+  APPLE: { 
+    name: 'Apple', emoji: '🍎', basePoints: 2, type: 'crop', color: '#FF4500',
+    description: 'Classic crop. Reliable points.',
+    ability: null,
+    strategy: 'Apples are versatile. Use them to complete crop formations.'
+  },
+  GRAPES: { 
+    name: 'Grapes', emoji: '🍇', basePoints: 3, type: 'crop', color: '#9370DB',
+    description: 'Premium crop. Works well with processing buildings.',
+    ability: null,
+    strategy: 'Grapes + Mill = 6 points. Plan your Mill placement around Grapes.'
+  },
+  WATERMELON: { 
+    name: 'Watermelon', emoji: '🍉', basePoints: 4, type: 'crop', color: '#FF6B6B',
+    description: 'High-value crop. Best when paired with buildings.',
+    ability: null,
+    strategy: 'Watermelons are expensive but powerful. Save for high-value placements.'
+  },
+  
+  // Animals
+  CHICKEN: { 
+    name: 'Chicken', emoji: '🐔', basePoints: 3, type: 'animal', color: '#FFE4E1',
+    description: 'Small farm animal. Needs Barn or Fence for protection.',
+    ability: null,
+    strategy: 'Chickens + Barn = 7 points! Always place near Barns when possible.'
+  },
+  COW: { 
+    name: 'Cow', emoji: '🐄', basePoints: 5, type: 'animal', color: '#F0F0F0',
+    description: 'Large animal. High base value, great with Barns.',
+    ability: null,
+    strategy: 'Cows are your highest-value animals. Barn + Cow = 9 points!'
+  },
+  PIG: { 
+    name: 'Pig', emoji: '🐷', basePoints: 4, type: 'animal', color: '#FFB6C1',
+    description: 'Medium animal. Good synergy potential.',
+    ability: null,
+    strategy: 'Pigs work well in animal clusters. Place near Barns and Fences.'
+  },
+  SHEEP: { 
+    name: 'Sheep', emoji: '🐑', basePoints: 4, type: 'animal', color: '#FFFFFF',
+    description: 'Flock animal. Benefits from grouping.',
+    ability: null,
+    strategy: 'Multiple Sheep together create strong animal formations.'
+  },
+  HORSE: { 
+    name: 'Horse', emoji: '🐴', basePoints: 6, type: 'animal', color: '#8B4513',
+    description: 'Premium animal. Highest base value.',
+    ability: null,
+    strategy: 'Horses are game-changers. Save for perfect Barn placements (10 points!).'
+  },
+  DUCK: { 
+    name: 'Duck', emoji: '🦆', basePoints: 3, type: 'animal', color: '#FFD700',
+    description: 'Water bird. Versatile placement.',
+    ability: null,
+    strategy: 'Ducks work well near Wells. Create animal + building combos.'
+  },
+  GOAT: { 
+    name: 'Goat', emoji: '🐐', basePoints: 4, type: 'animal', color: '#F5F5DC',
+    description: 'Hardy animal. Good all-around value.',
+    ability: null,
+    strategy: 'Goats are reliable. Use them to fill animal slots near Barns.'
+  },
+  RABBIT: { 
+    name: 'Rabbit', emoji: '🐰', basePoints: 3, type: 'animal', color: '#FFFFFF',
+    description: 'Fast-breeding animal. Quick points.',
+    ability: null,
+    strategy: 'Rabbits are great for early game. Place near Fences for +2 bonus.'
+  },
+  TURKEY: { 
+    name: 'Turkey', emoji: '🦃', basePoints: 4, type: 'animal', color: '#CD853F',
+    description: 'Large bird. Good synergy potential.',
+    ability: null,
+    strategy: 'Turkeys work well with other animals. Create animal clusters.'
+  },
+  BEE: { 
+    name: 'Bee', emoji: '🐝', basePoints: 2, type: 'animal', color: '#FFD700',
+    description: 'Pollinator. Helps crops grow.',
+    ability: CARD_ABILITIES.DOUBLE_ADJACENT,
+    strategy: 'Bees double points of adjacent crops! Place Bees strategically between crops.'
+  },
+  
+  // Buildings
+  BARN: { 
+    name: 'Barn', emoji: '🏚️', basePoints: 4, type: 'building', color: '#CD853F',
+    description: 'Animal shelter. Gives +4 bonus to adjacent animals.',
+    ability: null,
+    strategy: 'Place Barns first, then surround with animals. Each animal gets +4!'
+  },
+  MILL: { 
+    name: 'Mill', emoji: '🏭', basePoints: 5, type: 'building', color: '#D3D3D3',
+    description: 'Crop processor. Gives +3 bonus to adjacent crops.',
+    ability: null,
+    strategy: 'Mills are crop multipliers. Place in center and surround with crops.'
+  },
+  FENCE: { 
+    name: 'Fence', emoji: '🪵', basePoints: 2, type: 'building', color: '#8B7355',
+    description: 'Animal enclosure. Gives +2 bonus to adjacent animals.',
+    ability: null,
+    strategy: 'Fences are cheap but effective. Use to boost multiple animals.'
+  },
+  WELL: { 
+    name: 'Well', emoji: '⛲', basePoints: 3, type: 'building', color: '#B0C4DE',
+    description: 'Water source. Gives +2 bonus to adjacent crops.',
+    ability: null,
+    strategy: 'Wells help crops thrive. Place near crop clusters for maximum effect.'
+  },
+  SCARECROW: { 
+    name: 'Scarecrow', emoji: '🛡️', basePoints: 3, type: 'building', color: '#8B4513',
+    description: 'Crop protector. Gives +2 bonus to adjacent crops.',
+    ability: null,
+    strategy: 'Scarecrows protect crops. Use them to boost crop formations.'
+  },
+  SILO: { 
+    name: 'Silo', emoji: '🏗️', basePoints: 5, type: 'building', color: '#C0C0C0',
+    description: 'Storage building. Gives +2 bonus to adjacent crops.',
+    ability: null,
+    strategy: 'Silos store crops. Place near high-value crops for bonuses.'
+  },
+  GREENHOUSE: { 
+    name: 'Greenhouse', emoji: '🏠', basePoints: 6, type: 'building', color: '#90EE90',
+    description: 'Advanced building. Gives +3 bonus to adjacent crops.',
+    ability: null,
+    strategy: 'Greenhouses are premium crop boosters. Save for high-value crop combos.'
+  },
+  WINDMILL: { 
+    name: 'Windmill', emoji: '⚡', basePoints: 4, type: 'building', color: '#D3D3D3',
+    description: 'Energy building. Versatile placement.',
+    ability: null,
+    strategy: 'Windmills provide steady points. Use them to fill building slots.'
+  },
+  
+  // Special
+  TRACTOR: { 
+    name: 'Tractor', emoji: '🚜', basePoints: 6, type: 'special', color: '#FFA500',
+    description: 'Farm vehicle. Gives +2 bonus to ALL adjacent tiles.',
+    ability: null,
+    strategy: 'Tractors boost everything nearby! Place in high-traffic areas for maximum value.'
+  },
+  SEEDS: { 
+    name: 'Seeds', emoji: '🌱', basePoints: 1, type: 'special', color: '#90EE90',
+    description: 'Planting material. Low cost, high potential.',
+    ability: CARD_ABILITIES.DOUBLE_POINTS,
+    strategy: 'Seeds double their own points when placed. Use on high-value spots for 2x multiplier!'
+  },
+  HAY: { 
+    name: 'Hay', emoji: '🌾', basePoints: 2, type: 'special', color: '#DAA520',
+    description: 'Animal feed. Helps animals thrive.',
+    ability: null,
+    strategy: 'Hay works well near animals. Use it to fill gaps in animal formations.'
+  },
+  FERTILIZER: { 
+    name: 'Fertilizer', emoji: '💩', basePoints: 3, type: 'special', color: '#8B4513',
+    description: 'Soil enhancer. Clears a random tile when placed.',
+    ability: CARD_ABILITIES.CLEAR_RANDOM,
+    strategy: 'Fertilizer clears a random tile! Use it to remove low-value cards and make room for better placements.'
+  },
+  RAIN: { 
+    name: 'Rain', emoji: '🌧️', basePoints: 2, type: 'special', color: '#87CEEB',
+    description: 'Weather effect. Gives +2 bonus to adjacent crops.',
+    ability: null,
+    strategy: 'Rain helps crops grow. Place near crop clusters for bonuses.'
+  },
+  SUN: { 
+    name: 'Sun', emoji: '☀️', basePoints: 3, type: 'special', color: '#FFD700',
+    description: 'Weather effect. Gives +2 bonus to adjacent crops.',
+    ability: null,
+    strategy: 'Sun boosts crops. Use it to maximize crop point values.'
+  },
+};
+
+// Synergy rules
+const SYNERGIES = {
+  crop_mill: { bonus: 3, description: 'Crops near Mill' },
+  animal_barn: { bonus: 4, description: 'Animals near Barn' },
+  animal_fence: { bonus: 2, description: 'Animals near Fence' },
+  crop_well: { bonus: 2, description: 'Crops near Well' },
+  crop_scarecrow: { bonus: 2, description: 'Crops near Scarecrow' },
+  crop_greenhouse: { bonus: 3, description: 'Crops near Greenhouse' },
+  crop_silo: { bonus: 2, description: 'Crops near Silo' },
+  same_type: { bonus: 1, description: 'Same type adjacent' },
+  tractor_any: { bonus: 2, description: 'Tractor nearby' },
+  rain_crop: { bonus: 2, description: 'Rain near Crops' },
+  sun_crop: { bonus: 2, description: 'Sun near Crops' },
+};
+
+function App() {
+  const [grid, setGrid] = useState(Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(null)));
+  const [hand, setHand] = useState([]);
+  const [score, setScore] = useState(0);
+  const [selectedCard, setSelectedCard] = useState(null);
+  const [draggedCard, setDraggedCard] = useState(null);
+  const [gameCode, setGameCode] = useState('');
+  const [joinCode, setJoinCode] = useState('');
+  const [isMultiplayer, setIsMultiplayer] = useState(false);
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [userId, setUserId] = useState(null);
+  const [playerName, setPlayerName] = useState('');
+  const [showNameInput, setShowNameInput] = useState(true);
+  const [showMultiplayerModal, setShowMultiplayerModal] = useState(false);
+  const [showDictionary, setShowDictionary] = useState(false);
+  const [gameEnded, setGameEnded] = useState(false);
+
+  // Initialize deck
+  const createDeck = () => {
+    const deck = [];
+    const cardEntries = Object.entries(CARD_TYPES);
+    
+    // Create multiple copies of each card for a larger deck
+    cardEntries.forEach(([key, card]) => {
+      const copies = card.basePoints <= 2 ? 8 : card.basePoints <= 4 ? 6 : card.basePoints <= 5 ? 4 : 3;
+      for (let i = 0; i < copies; i++) {
+        deck.push({ ...card, id: `${key}_${i}`, cardKey: key });
+      }
+    });
+    
+    // Shuffle deck
+    return deck.sort(() => Math.random() - 0.5);
+  };
+
+  const [deck, setDeck] = useState(createDeck());
+
+  // Draw cards to hand
+  const drawCards = useCallback(() => {
+    if (hand.length >= 5 || gameEnded) return;
+    const cardsToDraw = Math.min(5 - hand.length, deck.length);
+    const drawn = deck.slice(0, cardsToDraw);
+    setHand(prev => [...prev, ...drawn]);
+    setDeck(prev => prev.slice(cardsToDraw));
+  }, [hand.length, deck, gameEnded]);
+
+  // Initialize hand
   useEffect(() => {
-    // Verify Firebase connection
-    if (auth && db) {
-      setFirebaseConnected(true)
+    if (hand.length === 0 && deck.length > 0 && !gameEnded) {
+      drawCards();
     }
-  }, [])
+  }, [hand.length, deck.length, drawCards, gameEnded]);
+
+  // Calculate synergies
+  const calculateSynergies = (row, col, cardType) => {
+    let bonus = 0;
+    const synergies = [];
+
+    const neighbors = [
+      [row - 1, col], [row + 1, col], [row, col - 1], [row, col + 1]
+    ].filter(([r, c]) => r >= 0 && r < GRID_SIZE && c >= 0 && c < GRID_SIZE);
+
+    neighbors.forEach(([r, c]) => {
+      const neighbor = grid[r][c];
+      if (!neighbor) return;
+
+      const neighborType = neighbor.cardKey ? CARD_TYPES[neighbor.cardKey] : neighbor;
+      
+      if (cardType.type === 'crop' && neighborType.type === 'building' && neighborType.name === 'Mill') {
+        bonus += SYNERGIES.crop_mill.bonus;
+        synergies.push(SYNERGIES.crop_mill.description);
+      }
+      if (cardType.type === 'animal' && neighborType.type === 'building' && neighborType.name === 'Barn') {
+        bonus += SYNERGIES.animal_barn.bonus;
+        synergies.push(SYNERGIES.animal_barn.description);
+      }
+      if (cardType.type === 'animal' && neighborType.type === 'building' && neighborType.name === 'Fence') {
+        bonus += SYNERGIES.animal_fence.bonus;
+        synergies.push(SYNERGIES.animal_fence.description);
+      }
+      if (cardType.type === 'crop' && neighborType.type === 'building' && neighborType.name === 'Well') {
+        bonus += SYNERGIES.crop_well.bonus;
+        synergies.push(SYNERGIES.crop_well.description);
+      }
+      if (cardType.type === 'crop' && neighborType.type === 'building' && neighborType.name === 'Scarecrow') {
+        bonus += SYNERGIES.crop_scarecrow.bonus;
+        synergies.push(SYNERGIES.crop_scarecrow.description);
+      }
+      if (cardType.type === 'crop' && neighborType.type === 'building' && neighborType.name === 'Greenhouse') {
+        bonus += SYNERGIES.crop_greenhouse.bonus;
+        synergies.push(SYNERGIES.crop_greenhouse.description);
+      }
+      if (cardType.type === 'crop' && neighborType.type === 'building' && neighborType.name === 'Silo') {
+        bonus += SYNERGIES.crop_silo.bonus;
+        synergies.push(SYNERGIES.crop_silo.description);
+      }
+      if (cardType.type === neighborType.type && cardType.name !== neighborType.name) {
+        bonus += SYNERGIES.same_type.bonus;
+        synergies.push(SYNERGIES.same_type.description);
+      }
+      if (neighborType.name === 'Tractor') {
+        bonus += SYNERGIES.tractor_any.bonus;
+        synergies.push(SYNERGIES.tractor_any.description);
+      }
+      if (neighborType.name === 'Rain' && cardType.type === 'crop') {
+        bonus += SYNERGIES.rain_crop.bonus;
+        synergies.push(SYNERGIES.rain_crop.description);
+      }
+      if (neighborType.name === 'Sun' && cardType.type === 'crop') {
+        bonus += SYNERGIES.sun_crop.bonus;
+        synergies.push(SYNERGIES.sun_crop.description);
+      }
+      // Bee ability: double adjacent crop points
+      if (neighborType.name === 'Bee' && cardType.type === 'crop') {
+        bonus += cardType.basePoints; // Double the base points
+        synergies.push('Bee pollination bonus');
+      }
+    });
+
+    return { bonus, synergies };
+  };
+
+  // Apply card abilities
+  const applyCardAbility = (cardData, row, col) => {
+    const newGrid = grid.map(r => [...r]);
+    let pointsEarned = 0;
+
+    switch (cardData.ability) {
+      case CARD_ABILITIES.CLEAR_RANDOM:
+        // Clear a random filled tile
+        const filledTiles = [];
+        newGrid.forEach((r, ri) => {
+          r.forEach((c, ci) => {
+            if (c && !(ri === row && ci === col)) {
+              filledTiles.push([ri, ci]);
+            }
+          });
+        });
+        if (filledTiles.length > 0) {
+          const randomTile = filledTiles[Math.floor(Math.random() * filledTiles.length)];
+          newGrid[randomTile[0]][randomTile[1]] = null;
+        }
+        break;
+      
+      case CARD_ABILITIES.DOUBLE_ADJACENT:
+        // Double points of adjacent crops (Bee ability)
+        const neighbors = [
+          [row - 1, col], [row + 1, col], [row, col - 1], [row, col + 1]
+        ].filter(([r, c]) => r >= 0 && r < GRID_SIZE && c >= 0 && c < GRID_SIZE);
+        
+        neighbors.forEach(([r, c]) => {
+          const neighbor = newGrid[r][c];
+          if (neighbor && neighbor.type === 'crop') {
+            const neighborCard = neighbor.cardKey ? CARD_TYPES[neighbor.cardKey] : neighbor;
+            const bonusPoints = neighborCard.basePoints;
+            newGrid[r][c].points += bonusPoints;
+            pointsEarned += bonusPoints;
+          }
+        });
+        break;
+      
+      case CARD_ABILITIES.DOUBLE_POINTS:
+        // Double this card's points (Seeds ability)
+        pointsEarned = cardData.basePoints;
+        break;
+      
+      default:
+        break;
+    }
+
+    return { newGrid, pointsEarned };
+  };
+
+  // Place card on grid
+  const placeCard = (row, col, cardToPlace = null) => {
+    if (gameEnded) return;
+    const card = cardToPlace || selectedCard;
+    if (!card || grid[row][col] !== null) return;
+
+    const cardData = card.cardKey ? CARD_TYPES[card.cardKey] : card;
+    const { bonus, synergies } = calculateSynergies(row, col, cardData);
+    let points = cardData.basePoints + bonus;
+
+    // Apply card ability
+    const { newGrid: gridAfterAbility, pointsEarned: abilityPoints } = applyCardAbility(cardData, row, col);
+    const finalGrid = gridAfterAbility.map(r => [...r]);
+    
+    // Handle Seeds double points ability
+    if (cardData.ability === CARD_ABILITIES.DOUBLE_POINTS) {
+      points = points * 2;
+    }
+
+    finalGrid[row][col] = {
+      ...cardData,
+      id: card.id,
+      cardKey: card.cardKey,
+      points,
+      synergies
+    };
+
+    setGrid(finalGrid);
+    setScore(prev => prev + points + abilityPoints);
+    setHand(prev => prev.filter(c => c.id !== card.id));
+    setSelectedCard(null);
+    setDraggedCard(null);
+    if (!gameEnded) {
+      drawCards();
+    }
+
+    // Save to Firestore if multiplayer
+    if (isMultiplayer && gameCode && db) {
+      const gameRef = doc(db, 'games', gameCode);
+      updateDoc(gameRef, {
+        grid: finalGrid,
+        score,
+        lastUpdated: new Date().toISOString()
+      });
+    }
+  };
+
+  // Drag handlers
+  const handleDragStart = (e, card) => {
+    if (gameEnded) return;
+    setDraggedCard(card);
+    setSelectedCard(card);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e, row, col) => {
+    e.preventDefault();
+    if (draggedCard && grid[row][col] === null && !gameEnded) {
+      placeCard(row, col, draggedCard);
+    }
+  };
+
+  // Submit score to leaderboard
+  const submitScore = async () => {
+    if (!db) {
+      alert('Firebase is not configured. Leaderboard features are disabled.');
+      setGameEnded(true);
+      return;
+    }
+    if (!userId || !playerName) {
+      alert('Please wait for authentication...');
+      return;
+    }
+    
+    try {
+      await addDoc(collection(db, 'leaderboard'), {
+        playerName,
+        score,
+        timestamp: new Date().toISOString(),
+        userId
+      });
+      setGameEnded(true);
+      alert(`Score of ${score} submitted to leaderboard! Game ended.`);
+    } catch (error) {
+      console.error('Error submitting score:', error);
+      alert('Failed to submit score. Please check your Firebase configuration and permissions.');
+    }
+  };
+
+  // Create multiplayer game with code
+  const createMultiplayerGame = async () => {
+    if (!db) {
+      alert('Firebase is not configured. Multiplayer features are disabled.');
+      setShowMultiplayerModal(false);
+      return;
+    }
+    if (!userId) {
+      alert('Please wait for authentication...');
+      return;
+    }
+    
+    try {
+      const code = generateGameCode();
+      const gameRef = doc(db, 'games', code);
+      await setDoc(gameRef, {
+        grid: Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(null)),
+        score: 0,
+        players: [userId],
+        playerNames: [playerName],
+        created: new Date().toISOString(),
+        gameCode: code
+      });
+      setGameCode(code);
+      setIsMultiplayer(true);
+      setShowMultiplayerModal(false);
+    } catch (error) {
+      console.error('Error creating game:', error);
+      alert('Failed to create game. Please check your Firebase configuration and permissions.');
+    }
+  };
+
+  // Join multiplayer game by code
+  const joinMultiplayerGame = async () => {
+    if (!db) {
+      alert('Firebase is not configured. Multiplayer features are disabled.');
+      setShowMultiplayerModal(false);
+      return;
+    }
+    if (!userId) {
+      alert('Please wait for authentication...');
+      return;
+    }
+    if (!joinCode.trim()) {
+      alert('Please enter a game code.');
+      return;
+    }
+    
+    try {
+      const gameRef = doc(db, 'games', joinCode.toUpperCase());
+      const gameSnap = await getDoc(gameRef);
+      
+      if (!gameSnap.exists()) {
+        alert('Game code not found!');
+        return;
+      }
+
+      const gameData = gameSnap.data();
+      const players = gameData.players || [];
+      const playerNames = gameData.playerNames || [];
+
+      if (players.includes(userId)) {
+        alert('You are already in this game!');
+        return;
+      }
+
+      await updateDoc(gameRef, {
+        players: [...players, userId],
+        playerNames: [...playerNames, playerName]
+      });
+
+      setGameCode(joinCode.toUpperCase());
+      setIsMultiplayer(true);
+      setShowMultiplayerModal(false);
+      setJoinCode('');
+    } catch (error) {
+      console.error('Error joining game:', error);
+      alert('Error joining game. Please check the code and your Firebase permissions.');
+    }
+  };
+
+  // Initialize auth
+  useEffect(() => {
+    if (!auth) {
+      console.warn('Firebase Auth not available. Running in offline mode.');
+      return;
+    }
+    
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        try {
+          await signInAnonymously(auth);
+        } catch (error) {
+          console.warn('Auth error (app will continue in offline mode):', error);
+        }
+      } else {
+        setUserId(user.uid);
+      }
+    }, (error) => {
+      console.warn('Auth state change error (app will continue in offline mode):', error);
+    });
+
+    return () => unsubscribe();
+  }, [auth]);
+
+  // Load leaderboard
+  useEffect(() => {
+    if (!db) return;
+
+    const q = query(collection(db, 'leaderboard'), orderBy('score', 'desc'), limit(10));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const scores = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setLeaderboard(scores);
+    });
+
+    return () => unsubscribe();
+  }, [db]);
+
+  // Load multiplayer game
+  useEffect(() => {
+    if (!db || !gameCode) return;
+
+    const gameRef = doc(db, 'games', gameCode);
+    const unsubscribe = onSnapshot(gameRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        if (data.grid) {
+          const restoredGrid = data.grid.map(row => 
+            row.map(cell => {
+              if (cell && !cell.cardKey && cell.name) {
+                const cardEntry = Object.entries(CARD_TYPES).find(([, card]) => card.name === cell.name);
+                if (cardEntry) {
+                  return { ...cell, cardKey: cardEntry[0] };
+                }
+              }
+              return cell;
+            })
+          );
+          setGrid(restoredGrid);
+        }
+        if (data.score !== undefined) setScore(data.score);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [db, gameCode]);
+
+  const startNewGame = () => {
+    setGrid(Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(null)));
+    setScore(0);
+    setDeck(createDeck());
+    setHand([]);
+    setSelectedCard(null);
+    setDraggedCard(null);
+    setGameCode('');
+    setIsMultiplayer(false);
+    setGameEnded(false);
+    drawCards();
+  };
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>GridGame</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-        {firebaseConnected && (
-          <p style={{ color: '#4ade80', marginTop: '10px' }}>
-            ✅ Firebase Connected Successfully!
-          </p>
-        )}
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <div className="app">
+      {showNameInput ? (
+        <div className="name-input-modal">
+          <div className="modal-content">
+            <h2>Enter Your Name</h2>
+            <input
+              type="text"
+              value={playerName}
+              onChange={(e) => setPlayerName(e.target.value)}
+              placeholder="Your name"
+              maxLength={20}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter' && playerName.trim()) {
+                  setShowNameInput(false);
+                }
+              }}
+            />
+            <button
+              onClick={() => {
+                if (playerName.trim()) {
+                  setShowNameInput(false);
+                }
+              }}
+              disabled={!playerName.trim()}
+            >
+              Start Playing
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="game-container">
+          <header className="game-header">
+            <h1>🌾 Farm Grid Game 🌾</h1>
+            <div className="score-display">
+              <div className="score">Score: {score}</div>
+              <div className="player-name">{playerName || 'Player'}</div>
+              {isMultiplayer && gameCode && (
+                <div className="game-code-display">
+                  Game: <strong>{gameCode}</strong>
+                </div>
+              )}
+              {gameEnded && (
+                <div className="game-ended-badge">Game Ended</div>
+              )}
+            </div>
+          </header>
+
+          <div className="game-board">
+            <div className="grid-container">
+              <div className="grid">
+                {grid.map((row, rowIndex) => (
+                  <div key={rowIndex} className="grid-row">
+                    {row.map((cell, colIndex) => (
+                      <div
+                        key={`${rowIndex}-${colIndex}`}
+                        className={`grid-cell ${cell ? 'filled' : 'empty'} ${selectedCard && grid[rowIndex][colIndex] === null && !gameEnded ? 'hoverable' : ''} ${gameEnded ? 'disabled' : ''}`}
+                        onClick={() => !gameEnded && placeCard(rowIndex, colIndex)}
+                        onDragOver={handleDragOver}
+                        onDrop={(e) => handleDrop(e, rowIndex, colIndex)}
+                        style={cell ? { backgroundColor: cell.color } : {}}
+                      >
+                        {cell && (
+                          <div className="cell-content">
+                            <div className="cell-emoji">{cell.emoji}</div>
+                            <div className="cell-name">{cell.name}</div>
+                            <div className="cell-points">+{cell.points}</div>
+                            {cell.synergies && cell.synergies.length > 0 && (
+                              <div className="cell-synergy">✨</div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="hand-container">
+              <h3>Hand ({hand.length}/5)</h3>
+              <div className="hand">
+                {hand.map((card) => {
+                  const cardData = card.cardKey ? CARD_TYPES[card.cardKey] : card;
+                  return (
+                    <div
+                      key={card.id}
+                      className={`card ${selectedCard?.id === card.id ? 'selected' : ''} ${gameEnded ? 'disabled' : ''}`}
+                      onClick={() => !gameEnded && setSelectedCard(card)}
+                      draggable={!gameEnded}
+                      onDragStart={(e) => !gameEnded && handleDragStart(e, card)}
+                      style={{ backgroundColor: cardData.color }}
+                    >
+                      <div className="card-emoji">{cardData.emoji}</div>
+                      <div className="card-name-small">{cardData.name}</div>
+                      <div className="card-points">{cardData.basePoints}</div>
+                      {cardData.ability && (
+                        <div className="card-ability-badge">⚡</div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              {hand.length < 5 && deck.length > 0 && !gameEnded && (
+                <button onClick={drawCards} className="draw-btn">
+                  Draw ({deck.length})
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="controls">
+            <button onClick={startNewGame} className="control-btn">
+              New Game
+            </button>
+            <button onClick={submitScore} className="control-btn" disabled={score === 0 || gameEnded}>
+              Submit Score
+            </button>
+            <button onClick={() => setShowMultiplayerModal(true)} className="control-btn" disabled={gameEnded}>
+              Multiplayer
+            </button>
+          </div>
+
+          {showMultiplayerModal && (
+            <div className="modal-overlay" onClick={() => setShowMultiplayerModal(false)}>
+              <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                <h2>Multiplayer</h2>
+                <div className="multiplayer-options">
+                  <div className="create-game">
+                    <h3>Create Game</h3>
+                    <button onClick={createMultiplayerGame} className="control-btn">
+                      Create New Game
+                    </button>
+                    {gameCode && (
+                      <div className="game-code-result">
+                        <p>Share this code:</p>
+                        <div className="code-display">{gameCode}</div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="join-game">
+                    <h3>Join Game</h3>
+                    <input
+                      type="text"
+                      value={joinCode}
+                      onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                      placeholder="Enter game code"
+                      maxLength={6}
+                      className="code-input"
+                    />
+                    <button onClick={joinMultiplayerGame} className="control-btn" disabled={!joinCode.trim()}>
+                      Join Game
+                    </button>
+                  </div>
+                </div>
+                <button onClick={() => setShowMultiplayerModal(false)} className="close-btn">
+                  Close
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="leaderboard">
+            <h3>🏆 Leaderboard</h3>
+            <div className="leaderboard-list">
+              {leaderboard.length === 0 ? (
+                <p>No scores yet. Be the first!</p>
+              ) : (
+                leaderboard.map((entry, index) => (
+                  <div key={entry.id} className="leaderboard-item">
+                    <span className="rank">#{index + 1}</span>
+                    <span className="name">{entry.playerName}</span>
+                    <span className="score-value">{entry.score} pts</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Dictionary Button */}
+          <button className="dictionary-btn" onClick={() => setShowDictionary(true)}>
+            📖 Dictionary
+          </button>
+
+          {/* Dictionary Modal */}
+          {showDictionary && (
+            <div className="modal-overlay" onClick={() => setShowDictionary(false)}>
+              <div className="dictionary-modal" onClick={(e) => e.stopPropagation()}>
+                <div className="dictionary-header">
+                  <h2>📖 Card Dictionary</h2>
+                  <button className="close-btn" onClick={() => setShowDictionary(false)}>✕</button>
+                </div>
+                <div className="dictionary-content">
+                  {Object.entries(CARD_TYPES).map(([key, card]) => (
+                    <div key={key} className="dictionary-card">
+                      <div className="dict-card-header">
+                        <span className="dict-emoji">{card.emoji}</span>
+                        <span className="dict-name">{card.name}</span>
+                        <span className="dict-type">{card.type}</span>
+                        <span className="dict-points">{card.basePoints} pts</span>
+                      </div>
+                      <div className="dict-description">{card.description}</div>
+                      {card.ability && (
+                        <div className="dict-ability">
+                          <strong>Special Ability:</strong> {
+                            card.ability === CARD_ABILITIES.CLEAR_RANDOM ? 'Clears a random tile when placed' :
+                            card.ability === CARD_ABILITIES.DOUBLE_ADJACENT ? 'Doubles points of adjacent crops' :
+                            card.ability === CARD_ABILITIES.DOUBLE_POINTS ? 'Doubles its own points when placed' :
+                            card.ability
+                          }
+                        </div>
+                      )}
+                      <div className="dict-synergies">
+                        <strong>Synergies:</strong>
+                        <ul>
+                          {card.type === 'crop' && (
+                            <>
+                              <li>Near Mill: +3 points</li>
+                              <li>Near Well: +2 points</li>
+                              <li>Near Scarecrow: +2 points</li>
+                              <li>Near Greenhouse: +3 points</li>
+                              <li>Near Silo: +2 points</li>
+                              <li>Near Rain: +2 points</li>
+                              <li>Near Sun: +2 points</li>
+                              <li>Near Bee: Double base points</li>
+                              <li>Near Tractor: +2 points</li>
+                              <li>Same type adjacent: +1 point</li>
+                            </>
+                          )}
+                          {card.type === 'animal' && (
+                            <>
+                              <li>Near Barn: +4 points</li>
+                              <li>Near Fence: +2 points</li>
+                              <li>Near Tractor: +2 points</li>
+                              <li>Same type adjacent: +1 point</li>
+                            </>
+                          )}
+                          {card.type === 'building' && (
+                            <>
+                              <li>Provides bonuses to adjacent cards</li>
+                              <li>Near Tractor: +2 points</li>
+                            </>
+                          )}
+                          {card.type === 'special' && (
+                            <>
+                              {card.name === 'Tractor' && <li>Gives +2 points to ALL adjacent tiles</li>}
+                              {card.name === 'Rain' && <li>Gives +2 points to adjacent crops</li>}
+                              {card.name === 'Sun' && <li>Gives +2 points to adjacent crops</li>}
+                            </>
+                          )}
+                        </ul>
+                      </div>
+                      <div className="dict-strategy">
+                        <strong>Strategy:</strong> {card.strategy}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
-export default App
+export default App;

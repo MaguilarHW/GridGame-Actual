@@ -15,26 +15,40 @@ const missingConfig = Object.entries(firebaseConfig)
   .filter(([, value]) => !value)
   .map(([key]) => key);
 
-if (missingConfig.length) {
-  throw new Error(`Missing Firebase env vars: ${missingConfig.join(", ")}`);
-}
+let app = null;
+let auth = null;
+let db = null;
 
-// Validate Firebase config format
-if (!firebaseConfig.apiKey || !firebaseConfig.apiKey.startsWith("AIza")) {
-  console.error("Invalid Firebase API key format");
-}
+// Only initialize Firebase if all config values are present
+if (missingConfig.length === 0) {
+  try {
+    app = initializeApp(firebaseConfig);
 
-const app = initializeApp(firebaseConfig);
-
-// Initialize Auth with error handling
-let auth;
-let db;
-try {
-  auth = getAuth(app);
-  db = getFirestore(app);
-} catch (error) {
-  console.error("Firebase initialization error:", error);
-  throw error;
+    // Validate Firebase config format
+    if (!firebaseConfig.apiKey || !firebaseConfig.apiKey.startsWith("AIza")) {
+      console.warn("Invalid Firebase API key format");
+    } else {
+      // Initialize Auth and Firestore only if config is valid
+      try {
+        auth = getAuth(app);
+        db = getFirestore(app);
+      } catch (error) {
+        console.warn("Firebase services initialization error:", error);
+        // Allow app to continue without Firebase
+      }
+    }
+  } catch (error) {
+    console.warn("Firebase initialization error:", error);
+    // Allow app to continue without Firebase
+  }
+} else {
+  console.warn(
+    "Firebase not configured. Missing env vars:",
+    missingConfig.join(", ")
+  );
+  console.warn(
+    "App will run in offline mode. Leaderboard and multiplayer features will be disabled."
+  );
 }
 
 export { auth, db };
