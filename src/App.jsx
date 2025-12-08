@@ -18,11 +18,12 @@ const CARD_ABILITIES = {
   DOUBLE_ADJACENT: 'double_adjacent',
   CLEAR_RANDOM: 'clear_random',
   DOUBLE_POINTS: 'double_points',
+  SWAP_MOVE: 'swap_move',
 };
 
-// Farm card types with synergies and abilities
+// Farm card types - REDUCED BUILDINGS, MORE CROPS
 const CARD_TYPES = {
-  // Crops
+  // Crops - INCREASED
   WHEAT: { 
     name: 'Wheat', emoji: '🌾', basePoints: 2, type: 'crop', color: '#F5DEB3',
     description: 'Basic crop. Works well near Mills for processing.',
@@ -83,6 +84,18 @@ const CARD_TYPES = {
     ability: null,
     strategy: 'Watermelons are expensive but powerful. Save for high-value placements.'
   },
+  BEANS: {
+    name: 'Beans', emoji: '🫘', basePoints: 2, type: 'crop', color: '#90EE90',
+    description: 'Legume crop. Good for soil health.',
+    ability: null,
+    strategy: 'Beans work well in crop rotations. Place near other crops.'
+  },
+  PEPPER: {
+    name: 'Pepper', emoji: '🫑', basePoints: 3, type: 'crop', color: '#FF4500',
+    description: 'Spicy crop. High value.',
+    ability: null,
+    strategy: 'Peppers are valuable. Use them strategically near buildings.'
+  },
   
   // Animals
   CHICKEN: { 
@@ -115,30 +128,6 @@ const CARD_TYPES = {
     ability: null,
     strategy: 'Horses are game-changers. Save for perfect Barn placements (10 points!).'
   },
-  DUCK: { 
-    name: 'Duck', emoji: '🦆', basePoints: 3, type: 'animal', color: '#FFD700',
-    description: 'Water bird. Versatile placement.',
-    ability: null,
-    strategy: 'Ducks work well near Wells. Create animal + building combos.'
-  },
-  GOAT: { 
-    name: 'Goat', emoji: '🐐', basePoints: 4, type: 'animal', color: '#F5F5DC',
-    description: 'Hardy animal. Good all-around value.',
-    ability: null,
-    strategy: 'Goats are reliable. Use them to fill animal slots near Barns.'
-  },
-  RABBIT: { 
-    name: 'Rabbit', emoji: '🐰', basePoints: 3, type: 'animal', color: '#FFFFFF',
-    description: 'Fast-breeding animal. Quick points.',
-    ability: null,
-    strategy: 'Rabbits are great for early game. Place near Fences for +2 bonus.'
-  },
-  TURKEY: { 
-    name: 'Turkey', emoji: '🦃', basePoints: 4, type: 'animal', color: '#CD853F',
-    description: 'Large bird. Good synergy potential.',
-    ability: null,
-    strategy: 'Turkeys work well with other animals. Create animal clusters.'
-  },
   BEE: { 
     name: 'Bee', emoji: '🐝', basePoints: 2, type: 'animal', color: '#FFD700',
     description: 'Pollinator. Helps crops grow.',
@@ -146,7 +135,7 @@ const CARD_TYPES = {
     strategy: 'Bees double points of adjacent crops! Place Bees strategically between crops.'
   },
   
-  // Buildings
+  // Buildings - REDUCED
   BARN: { 
     name: 'Barn', emoji: '🏚️', basePoints: 4, type: 'building', color: '#CD853F',
     description: 'Animal shelter. Gives +4 bonus to adjacent animals.',
@@ -171,30 +160,6 @@ const CARD_TYPES = {
     ability: null,
     strategy: 'Wells help crops thrive. Place near crop clusters for maximum effect.'
   },
-  SCARECROW: { 
-    name: 'Scarecrow', emoji: '🛡️', basePoints: 3, type: 'building', color: '#8B4513',
-    description: 'Crop protector. Gives +2 bonus to adjacent crops.',
-    ability: null,
-    strategy: 'Scarecrows protect crops. Use them to boost crop formations.'
-  },
-  SILO: { 
-    name: 'Silo', emoji: '🏗️', basePoints: 5, type: 'building', color: '#C0C0C0',
-    description: 'Storage building. Gives +2 bonus to adjacent crops.',
-    ability: null,
-    strategy: 'Silos store crops. Place near high-value crops for bonuses.'
-  },
-  GREENHOUSE: { 
-    name: 'Greenhouse', emoji: '🏠', basePoints: 6, type: 'building', color: '#90EE90',
-    description: 'Advanced building. Gives +3 bonus to adjacent crops.',
-    ability: null,
-    strategy: 'Greenhouses are premium crop boosters. Save for high-value crop combos.'
-  },
-  WINDMILL: { 
-    name: 'Windmill', emoji: '⚡', basePoints: 4, type: 'building', color: '#D3D3D3',
-    description: 'Energy building. Versatile placement.',
-    ability: null,
-    strategy: 'Windmills provide steady points. Use them to fill building slots.'
-  },
   
   // Special
   TRACTOR: { 
@@ -208,12 +173,6 @@ const CARD_TYPES = {
     description: 'Planting material. Low cost, high potential.',
     ability: CARD_ABILITIES.DOUBLE_POINTS,
     strategy: 'Seeds double their own points when placed. Use on high-value spots for 2x multiplier!'
-  },
-  HAY: { 
-    name: 'Hay', emoji: '🌾', basePoints: 2, type: 'special', color: '#DAA520',
-    description: 'Animal feed. Helps animals thrive.',
-    ability: null,
-    strategy: 'Hay works well near animals. Use it to fill gaps in animal formations.'
   },
   FERTILIZER: { 
     name: 'Fertilizer', emoji: '💩', basePoints: 3, type: 'special', color: '#8B4513',
@@ -232,6 +191,12 @@ const CARD_TYPES = {
     description: 'Weather effect. Gives +2 bonus to adjacent crops.',
     ability: null,
     strategy: 'Sun boosts crops. Use it to maximize crop point values.'
+  },
+  SHOVEL: {
+    name: 'Shovel', emoji: '🪣', basePoints: 2, type: 'special', color: '#8B7355',
+    description: 'Tool for moving cards. Click to select a card to move, then click destination.',
+    ability: CARD_ABILITIES.SWAP_MOVE,
+    strategy: 'Use Shovel to rearrange your board! Select a card, then click where to move it. Perfect for optimizing synergies.'
   },
 };
 
@@ -266,15 +231,20 @@ function App() {
   const [showMultiplayerModal, setShowMultiplayerModal] = useState(false);
   const [showDictionary, setShowDictionary] = useState(false);
   const [gameEnded, setGameEnded] = useState(false);
+  const [selectedCardForDetail, setSelectedCardForDetail] = useState(null);
+  const [shovelMode, setShovelMode] = useState(false);
+  const [cardToMove, setCardToMove] = useState(null);
+  const [synergyHighlights, setSynergyHighlights] = useState({});
+  const [selectedTileInfo, setSelectedTileInfo] = useState(null);
 
-  // Initialize deck
+  // Initialize deck - REDUCED COPIES
   const createDeck = () => {
     const deck = [];
     const cardEntries = Object.entries(CARD_TYPES);
     
-    // Create multiple copies of each card for a larger deck
+    // Reduced copies - less redundancy
     cardEntries.forEach(([key, card]) => {
-      const copies = card.basePoints <= 2 ? 8 : card.basePoints <= 4 ? 6 : card.basePoints <= 5 ? 4 : 3;
+      const copies = card.basePoints <= 2 ? 5 : card.basePoints <= 4 ? 4 : card.basePoints <= 5 ? 3 : 2;
       for (let i = 0; i < copies; i++) {
         deck.push({ ...card, id: `${key}_${i}`, cardKey: key });
       }
@@ -302,10 +272,11 @@ function App() {
     }
   }, [hand.length, deck.length, drawCards, gameEnded]);
 
-  // Calculate synergies
+  // Calculate synergies and highlight them
   const calculateSynergies = (row, col, cardType) => {
     let bonus = 0;
     const synergies = [];
+    const highlights = [];
 
     const neighbors = [
       [row - 1, col], [row + 1, col], [row, col - 1], [row, col + 1]
@@ -320,55 +291,52 @@ function App() {
       if (cardType.type === 'crop' && neighborType.type === 'building' && neighborType.name === 'Mill') {
         bonus += SYNERGIES.crop_mill.bonus;
         synergies.push(SYNERGIES.crop_mill.description);
+        highlights.push({ row: r, col: c, bonus: SYNERGIES.crop_mill.bonus });
       }
       if (cardType.type === 'animal' && neighborType.type === 'building' && neighborType.name === 'Barn') {
         bonus += SYNERGIES.animal_barn.bonus;
         synergies.push(SYNERGIES.animal_barn.description);
+        highlights.push({ row: r, col: c, bonus: SYNERGIES.animal_barn.bonus });
       }
       if (cardType.type === 'animal' && neighborType.type === 'building' && neighborType.name === 'Fence') {
         bonus += SYNERGIES.animal_fence.bonus;
         synergies.push(SYNERGIES.animal_fence.description);
+        highlights.push({ row: r, col: c, bonus: SYNERGIES.animal_fence.bonus });
       }
       if (cardType.type === 'crop' && neighborType.type === 'building' && neighborType.name === 'Well') {
         bonus += SYNERGIES.crop_well.bonus;
         synergies.push(SYNERGIES.crop_well.description);
-      }
-      if (cardType.type === 'crop' && neighborType.type === 'building' && neighborType.name === 'Scarecrow') {
-        bonus += SYNERGIES.crop_scarecrow.bonus;
-        synergies.push(SYNERGIES.crop_scarecrow.description);
-      }
-      if (cardType.type === 'crop' && neighborType.type === 'building' && neighborType.name === 'Greenhouse') {
-        bonus += SYNERGIES.crop_greenhouse.bonus;
-        synergies.push(SYNERGIES.crop_greenhouse.description);
-      }
-      if (cardType.type === 'crop' && neighborType.type === 'building' && neighborType.name === 'Silo') {
-        bonus += SYNERGIES.crop_silo.bonus;
-        synergies.push(SYNERGIES.crop_silo.description);
+        highlights.push({ row: r, col: c, bonus: SYNERGIES.crop_well.bonus });
       }
       if (cardType.type === neighborType.type && cardType.name !== neighborType.name) {
         bonus += SYNERGIES.same_type.bonus;
         synergies.push(SYNERGIES.same_type.description);
+        highlights.push({ row: r, col: c, bonus: SYNERGIES.same_type.bonus });
       }
       if (neighborType.name === 'Tractor') {
         bonus += SYNERGIES.tractor_any.bonus;
         synergies.push(SYNERGIES.tractor_any.description);
+        highlights.push({ row: r, col: c, bonus: SYNERGIES.tractor_any.bonus });
       }
       if (neighborType.name === 'Rain' && cardType.type === 'crop') {
         bonus += SYNERGIES.rain_crop.bonus;
         synergies.push(SYNERGIES.rain_crop.description);
+        highlights.push({ row: r, col: c, bonus: SYNERGIES.rain_crop.bonus });
       }
       if (neighborType.name === 'Sun' && cardType.type === 'crop') {
         bonus += SYNERGIES.sun_crop.bonus;
         synergies.push(SYNERGIES.sun_crop.description);
+        highlights.push({ row: r, col: c, bonus: SYNERGIES.sun_crop.bonus });
       }
       // Bee ability: double adjacent crop points
       if (neighborType.name === 'Bee' && cardType.type === 'crop') {
-        bonus += cardType.basePoints; // Double the base points
+        bonus += cardType.basePoints;
         synergies.push('Bee pollination bonus');
+        highlights.push({ row: r, col: c, bonus: cardType.basePoints, special: true });
       }
     });
 
-    return { bonus, synergies };
+    return { bonus, synergies, highlights };
   };
 
   // Apply card abilities
@@ -378,7 +346,6 @@ function App() {
 
     switch (cardData.ability) {
       case CARD_ABILITIES.CLEAR_RANDOM:
-        // Clear a random filled tile
         const filledTiles = [];
         newGrid.forEach((r, ri) => {
           r.forEach((c, ci) => {
@@ -394,7 +361,6 @@ function App() {
         break;
       
       case CARD_ABILITIES.DOUBLE_ADJACENT:
-        // Double points of adjacent crops (Bee ability)
         const neighbors = [
           [row - 1, col], [row + 1, col], [row, col - 1], [row, col + 1]
         ].filter(([r, c]) => r >= 0 && r < GRID_SIZE && c >= 0 && c < GRID_SIZE);
@@ -411,7 +377,6 @@ function App() {
         break;
       
       case CARD_ABILITIES.DOUBLE_POINTS:
-        // Double this card's points (Seeds ability)
         pointsEarned = cardData.basePoints;
         break;
       
@@ -425,11 +390,65 @@ function App() {
   // Place card on grid
   const placeCard = (row, col, cardToPlace = null) => {
     if (gameEnded) return;
+    
+    // Handle shovel mode
+    if (shovelMode && cardToMove) {
+      const [moveRow, moveCol] = cardToMove;
+      const cardBeingMoved = grid[moveRow][moveCol];
+      
+      if (grid[row][col] === null && cardBeingMoved) {
+        // Move the card
+        const newGrid = grid.map(r => [...r]);
+        newGrid[row][col] = cardBeingMoved;
+        newGrid[moveRow][moveCol] = null;
+        
+        // Recalculate points for moved card
+        const cardData = cardBeingMoved.cardKey ? CARD_TYPES[cardBeingMoved.cardKey] : cardBeingMoved;
+        const { bonus } = calculateSynergies(row, col, cardData);
+        const newPoints = cardData.basePoints + bonus;
+        newGrid[row][col].points = newPoints;
+        
+        setGrid(newGrid);
+        setShovelMode(false);
+        setCardToMove(null);
+        setSelectedCard(null);
+        
+        // Recalculate score
+        let newScore = 0;
+        newGrid.forEach(row => {
+          row.forEach(cell => {
+            if (cell) newScore += cell.points;
+          });
+        });
+        setScore(newScore);
+        
+        if (isMultiplayer && gameCode && db) {
+          const gameRef = doc(db, 'games', gameCode);
+          updateDoc(gameRef, {
+            grid: newGrid,
+            score: newScore,
+            lastUpdated: new Date().toISOString()
+          });
+        }
+      }
+      return;
+    }
+    
     const card = cardToPlace || selectedCard;
     if (!card || grid[row][col] !== null) return;
 
     const cardData = card.cardKey ? CARD_TYPES[card.cardKey] : card;
-    const { bonus, synergies } = calculateSynergies(row, col, cardData);
+    
+    // Handle shovel card selection
+    if (cardData.ability === CARD_ABILITIES.SWAP_MOVE) {
+      setShovelMode(true);
+      setSelectedCard(null);
+      setHand(prev => prev.filter(c => c.id !== card.id));
+      drawCards();
+      return;
+    }
+    
+    const { bonus, synergies, highlights } = calculateSynergies(row, col, cardData);
     let points = cardData.basePoints + bonus;
 
     // Apply card ability
@@ -449,6 +468,14 @@ function App() {
       synergies
     };
 
+    // Show synergy highlights temporarily
+    const highlightMap = {};
+    highlights.forEach(h => {
+      highlightMap[`${h.row}-${h.col}`] = h;
+    });
+    setSynergyHighlights(highlightMap);
+    setTimeout(() => setSynergyHighlights({}), 2000);
+
     setGrid(finalGrid);
     setScore(prev => prev + points + abilityPoints);
     setHand(prev => prev.filter(c => c.id !== card.id));
@@ -466,6 +493,69 @@ function App() {
         score,
         lastUpdated: new Date().toISOString()
       });
+    }
+  };
+
+  // Handle grid cell click for shovel mode and tile info
+  const handleGridCellClick = (row, col) => {
+    if (gameEnded) {
+      // Still allow info viewing
+      const cell = grid[row][col];
+      if (cell) {
+        const cellData = cell.cardKey ? CARD_TYPES[cell.cardKey] : cell;
+        const { synergies } = calculateSynergies(row, col, cellData);
+        setSelectedTileInfo({
+          row,
+          col,
+          card: cell,
+          synergies,
+          points: cell.points,
+          base: cellData.basePoints,
+        });
+      } else {
+        setSelectedTileInfo(null);
+      }
+      return;
+    }
+    
+    if (shovelMode) {
+      if (!cardToMove) {
+        // Select card to move
+        if (grid[row][col]) {
+          setCardToMove([row, col]);
+          const cell = grid[row][col];
+          const cellData = cell.cardKey ? CARD_TYPES[cell.cardKey] : cell;
+          const { synergies } = calculateSynergies(row, col, cellData);
+          setSelectedTileInfo({
+            row,
+            col,
+            card: cell,
+            synergies,
+            points: cell.points,
+            base: cellData.basePoints,
+          });
+        }
+      } else {
+        // Move to destination
+        placeCard(row, col);
+      }
+    } else {
+      const cell = grid[row][col];
+      if (cell) {
+        const cellData = cell.cardKey ? CARD_TYPES[cell.cardKey] : cell;
+        const { synergies } = calculateSynergies(row, col, cellData);
+        setSelectedTileInfo({
+          row,
+          col,
+          card: cell,
+          synergies,
+          points: cell.points,
+          base: cellData.basePoints,
+        });
+      } else {
+        setSelectedTileInfo(null);
+        placeCard(row, col);
+      }
     }
   };
 
@@ -676,8 +766,20 @@ function App() {
     setGameCode('');
     setIsMultiplayer(false);
     setGameEnded(false);
+    setShovelMode(false);
+    setCardToMove(null);
+    setSelectedCardForDetail(null);
     drawCards();
   };
+
+  // Get card detail for selected card
+  const getCardDetail = () => {
+    if (!selectedCardForDetail) return null;
+    const cardData = selectedCardForDetail.cardKey ? CARD_TYPES[selectedCardForDetail.cardKey] : selectedCardForDetail;
+    return cardData;
+  };
+
+  const cardDetail = getCardDetail();
 
   return (
     <div className="app">
@@ -724,41 +826,167 @@ function App() {
               {gameEnded && (
                 <div className="game-ended-badge">Game Ended</div>
               )}
+              {shovelMode && (
+                <div className="shovel-mode-badge">🪣 Shovel Mode: Select card to move</div>
+              )}
             </div>
           </header>
 
-          <div className="game-board">
-            <div className="grid-container">
-              <div className="grid">
-                {grid.map((row, rowIndex) => (
-                  <div key={rowIndex} className="grid-row">
-                    {row.map((cell, colIndex) => (
-                      <div
-                        key={`${rowIndex}-${colIndex}`}
-                        className={`grid-cell ${cell ? 'filled' : 'empty'} ${selectedCard && grid[rowIndex][colIndex] === null && !gameEnded ? 'hoverable' : ''} ${gameEnded ? 'disabled' : ''}`}
-                        onClick={() => !gameEnded && placeCard(rowIndex, colIndex)}
-                        onDragOver={handleDragOver}
-                        onDrop={(e) => handleDrop(e, rowIndex, colIndex)}
-                        style={cell ? { backgroundColor: cell.color } : {}}
-                      >
-                        {cell && (
-                          <div className="cell-content">
-                            <div className="cell-emoji">{cell.emoji}</div>
-                            <div className="cell-name">{cell.name}</div>
-                            <div className="cell-points">+{cell.points}</div>
-                            {cell.synergies && cell.synergies.length > 0 && (
-                              <div className="cell-synergy">✨</div>
-                            )}
-                          </div>
-                        )}
+          <div className="main-game-area">
+            {/* DESCRIPTION PANEL */}
+            <div className="description-panel">
+              {cardDetail ? (
+                <div className="card-detail-view">
+                  <div className="detail-header">
+                    <span className="detail-emoji">{cardDetail.emoji}</span>
+                    <div>
+                      <h3>{cardDetail.name}</h3>
+                      <div className="detail-meta">
+                        <span className="detail-type">{cardDetail.type}</span>
+                        <span className="detail-points">{cardDetail.basePoints} pts</span>
                       </div>
-                    ))}
+                    </div>
                   </div>
-                ))}
+                  <div className="detail-description">
+                    <strong>Description:</strong>
+                    <p>{cardDetail.description}</p>
+                  </div>
+                  {cardDetail.ability && (
+                    <div className="detail-ability">
+                      <strong>Special Ability:</strong>
+                      <p>{
+                        cardDetail.ability === CARD_ABILITIES.CLEAR_RANDOM ? 'Clears a random tile when placed' :
+                        cardDetail.ability === CARD_ABILITIES.DOUBLE_ADJACENT ? 'Doubles points of adjacent crops' :
+                        cardDetail.ability === CARD_ABILITIES.DOUBLE_POINTS ? 'Doubles its own points when placed' :
+                        cardDetail.ability === CARD_ABILITIES.SWAP_MOVE ? 'Click to enter move mode, then select card to move and destination' :
+                        cardDetail.ability
+                      }</p>
+                    </div>
+                  )}
+                  <div className="detail-synergies">
+                    <strong>Synergies:</strong>
+                    <ul>
+                      {cardDetail.type === 'crop' && (
+                        <>
+                          <li>Near Mill: +3 points</li>
+                          <li>Near Well: +2 points</li>
+                          <li>Near Rain: +2 points</li>
+                          <li>Near Sun: +2 points</li>
+                          <li>Near Bee: Double base points</li>
+                          <li>Near Tractor: +2 points</li>
+                          <li>Same type adjacent: +1 point</li>
+                        </>
+                      )}
+                      {cardDetail.type === 'animal' && (
+                        <>
+                          <li>Near Barn: +4 points</li>
+                          <li>Near Fence: +2 points</li>
+                          <li>Near Tractor: +2 points</li>
+                          <li>Same type adjacent: +1 point</li>
+                        </>
+                      )}
+                      {cardDetail.type === 'building' && (
+                        <>
+                          <li>Provides bonuses to adjacent cards</li>
+                          <li>Near Tractor: +2 points</li>
+                        </>
+                      )}
+                      {cardDetail.type === 'special' && (
+                        <>
+                          {cardDetail.name === 'Tractor' && <li>Gives +2 points to ALL adjacent tiles</li>}
+                          {cardDetail.name === 'Rain' && <li>Gives +2 points to adjacent crops</li>}
+                          {cardDetail.name === 'Sun' && <li>Gives +2 points to adjacent crops</li>}
+                        </>
+                      )}
+                    </ul>
+                  </div>
+                  <div className="detail-strategy">
+                    <strong>Strategy:</strong>
+                    <p>{cardDetail.strategy}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="no-card-selected">
+                  <p>👈 Click a card in your hand to see its details</p>
+                </div>
+              )}
+            </div>
+
+            {/* PLAYING FIELD WITH TILE INFO */}
+            <div className="playing-field">
+              <div className="grid-shell">
+                <div className="grid">
+                  {grid.flatMap((row, rowIndex) =>
+                    row.map((cell, colIndex) => {
+                      const highlightKey = `${rowIndex}-${colIndex}`;
+                      const highlight = synergyHighlights[highlightKey];
+                      const isSelectedForMove = cardToMove && cardToMove[0] === rowIndex && cardToMove[1] === colIndex;
+
+                      return (
+                        <div
+                          key={`${rowIndex}-${colIndex}`}
+                          className={`grid-cell ${cell ? 'filled' : 'empty'} ${selectedCard && grid[rowIndex][colIndex] === null && !gameEnded ? 'hoverable' : ''} ${gameEnded ? 'disabled' : ''} ${highlight ? 'synergy-boost' : ''} ${isSelectedForMove ? 'selected-for-move' : ''} ${shovelMode && !cardToMove && cell ? 'shovel-selectable' : ''}`}
+                          onClick={() => handleGridCellClick(rowIndex, colIndex)}
+                          onDragOver={handleDragOver}
+                          onDrop={(e) => handleDrop(e, rowIndex, colIndex)}
+                          style={cell ? { backgroundColor: cell.color } : {}}
+                        >
+                          {cell && (
+                            <div className="cell-content">
+                              <div className="cell-emoji">{cell.emoji}</div>
+                              <div className="cell-name">{cell.name}</div>
+                              <div className="cell-points">+{cell.points}</div>
+                              {cell.synergies && cell.synergies.length > 0 && (
+                                <div className="cell-synergy">✨</div>
+                              )}
+                              {highlight && (
+                                <div className="synergy-indicator">
+                                  +{highlight.bonus}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {isSelectedForMove && (
+                            <div className="move-indicator">Move Here →</div>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+              <div className="tile-info-panel">
+                <h3>Tile Info</h3>
+                {selectedTileInfo ? (
+                  <div className="tile-info-card">
+                    <div className="tile-info-header">
+                      <span className="tile-info-emoji">{selectedTileInfo.card.emoji}</span>
+                      <div>
+                        <div className="tile-info-name">{selectedTileInfo.card.name}</div>
+                        <div className="tile-info-points">Base {selectedTileInfo.base} → {selectedTileInfo.points}</div>
+                      </div>
+                    </div>
+                    <div className="tile-info-body">
+                      <strong>Synergies Applied:</strong>
+                      {selectedTileInfo.synergies.length ? (
+                        <ul>
+                          {selectedTileInfo.synergies.map((s, i) => (
+                            <li key={i}>{s}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p>No synergies applied.</p>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="tile-info-empty">Click a placed tile to view boosts</div>
+                )}
               </div>
             </div>
 
-            <div className="hand-container">
+            {/* HAND */}
+            <div className="hand-panel">
               <h3>Hand ({hand.length}/5)</h3>
               <div className="hand">
                 {hand.map((card) => {
@@ -766,8 +994,13 @@ function App() {
                   return (
                     <div
                       key={card.id}
-                      className={`card ${selectedCard?.id === card.id ? 'selected' : ''} ${gameEnded ? 'disabled' : ''}`}
-                      onClick={() => !gameEnded && setSelectedCard(card)}
+                      className={`card ${selectedCardForDetail?.id === card.id ? 'selected-detail' : ''} ${selectedCard?.id === card.id ? 'selected' : ''} ${gameEnded ? 'disabled' : ''}`}
+                      onClick={() => {
+                        if (!gameEnded) {
+                          setSelectedCardForDetail(card);
+                          setSelectedCard(card);
+                        }
+                      }}
                       draggable={!gameEnded}
                       onDragStart={(e) => !gameEnded && handleDragStart(e, card)}
                       style={{ backgroundColor: cardData.color }}
@@ -800,6 +1033,14 @@ function App() {
             <button onClick={() => setShowMultiplayerModal(true)} className="control-btn" disabled={gameEnded}>
               Multiplayer
             </button>
+            {shovelMode && (
+              <button onClick={() => {
+                setShovelMode(false);
+                setCardToMove(null);
+              }} className="control-btn cancel-btn">
+                Cancel Move
+              </button>
+            )}
           </div>
 
           {showMultiplayerModal && (
@@ -887,6 +1128,7 @@ function App() {
                             card.ability === CARD_ABILITIES.CLEAR_RANDOM ? 'Clears a random tile when placed' :
                             card.ability === CARD_ABILITIES.DOUBLE_ADJACENT ? 'Doubles points of adjacent crops' :
                             card.ability === CARD_ABILITIES.DOUBLE_POINTS ? 'Doubles its own points when placed' :
+                            card.ability === CARD_ABILITIES.SWAP_MOVE ? 'Click to select a card to move, then click destination' :
                             card.ability
                           }
                         </div>
@@ -898,9 +1140,6 @@ function App() {
                             <>
                               <li>Near Mill: +3 points</li>
                               <li>Near Well: +2 points</li>
-                              <li>Near Scarecrow: +2 points</li>
-                              <li>Near Greenhouse: +3 points</li>
-                              <li>Near Silo: +2 points</li>
                               <li>Near Rain: +2 points</li>
                               <li>Near Sun: +2 points</li>
                               <li>Near Bee: Double base points</li>
