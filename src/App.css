@@ -149,9 +149,93 @@
 }
 
 .game-header {
-  text-align: center;
-  margin-bottom: 0.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
   flex-shrink: 0;
+}
+
+.user-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.logout-button {
+  padding: 0.5rem 1rem;
+  background: #ff6b6b;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.logout-button:hover {
+  background: #ff5252;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.tab-btn {
+  padding: 0.75rem 1.5rem;
+  background: transparent;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.tab-btn:hover {
+  background: rgba(139, 111, 71, 0.1);
+  color: #8b6f47;
+  transform: translateY(-2px);
+}
+
+.tab-btn.active {
+  background: linear-gradient(135deg, #8b6f47 0%, #a0826d 100%);
+  color: white;
+  border-color: #8b6f47;
+  box-shadow: 0 3px 8px rgba(139, 111, 71, 0.3);
+}
+
+.tab-btn.active:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(139, 111, 71, 0.4);
+}
+
+@media (max-width: 768px) {
+  .tabs {
+    gap: 0.25rem;
+    padding: 0.25rem;
+  }
+
+  .tab-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+    flex: 1;
+    min-width: 0;
+  }
 }
 
 .game-header h1 {
@@ -163,10 +247,11 @@
 
 .score-display {
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 1rem;
-  margin-bottom: 1rem;
+  margin-bottom: 0;
   flex-wrap: wrap;
+  flex: 1;
 }
 
 .score {
@@ -992,6 +1077,20 @@
 .name {
   color: #5d4037;
   font-weight: 500;
+}
+
+.name.clickable-name {
+  color: #8b6f47;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+
+.name.clickable-name:hover {
+  color: #6b8e23;
+  border-bottom-color: #6b8e23;
+  transform: translateX(2px);
 }
 
 .score-value {

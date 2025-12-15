@@ -11,10 +11,14 @@ import {
   getDoc,
   updateDoc,
 } from "firebase/firestore";
-import { signInAnonymously, onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import { motion } from "motion/react";
 import "./App.css";
 import { GlowEffect } from "./components/GlowEffect";
+import AuthView from "./components/AuthView";
+import UserProfile from "./components/UserProfile";
+import PublicContent from "./components/PublicContent";
+import ViewProfile from "./components/ViewProfile";
 import { auth, db } from "./firebase";
 
 const GRID_SIZE = 5;
@@ -414,8 +418,10 @@ function App() {
   const [isMultiplayer, setIsMultiplayer] = useState(false);
   const [leaderboard, setLeaderboard] = useState([]);
   const [userId, setUserId] = useState(null);
+  const [user, setUser] = useState(null);
   const [playerName, setPlayerName] = useState("");
-  const [showNameInput, setShowNameInput] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
   const [showMultiplayerModal, setShowMultiplayerModal] = useState(false);
   const [showDictionary, setShowDictionary] = useState(false);
   const [gameEnded, setGameEnded] = useState(false);
@@ -425,6 +431,7 @@ function App() {
   const [synergyHighlights, setSynergyHighlights] = useState({});
   const [selectedTileInfo, setSelectedTileInfo] = useState(null);
   const [activeTab, setActiveTab] = useState("game");
+  const [viewingProfile, setViewingProfile] = useState(null);
   const hoverOscRef = useRef(null);
   const clickOscRef = useRef(null);
 
@@ -886,12 +893,29 @@ function App() {
     }
 
     try {
+      // Submit to leaderboard
       await addDoc(collection(db, "leaderboard"), {
         playerName,
         score,
         timestamp: new Date().toISOString(),
         userId,
       });
+
+      // Update user profile stats
+      if (auth?.currentUser) {
+        const profileRef = doc(db, "userProfiles", auth.currentUser.uid);
+        const profileSnap = await getDoc(profileRef);
+        
+        if (profileSnap.exists()) {
+          const currentData = profileSnap.data();
+          await updateDoc(profileRef, {
+            gamesPlayed: (currentData.gamesPlayed || 0) + 1,
+            bestScore: Math.max(currentData.bestScore || 0, score),
+            lastPlayed: new Date().toISOString(),
+          });
+        }
+      }
+
       setGameEnded(true);
       alert(`Score of ${score} submitted to leaderboard! Game ended.`);
     } catch (error) {
@@ -993,35 +1017,68 @@ function App() {
   useEffect(() => {
     if (!auth) {
       console.warn("Firebase Auth not available. Running in offline mode.");
+      setAuthLoading(false);
       return;
     }
 
     const unsubscribe = onAuthStateChanged(
       auth,
-      async (user) => {
-        if (!user) {
-          try {
-            await signInAnonymously(auth);
-          } catch (error) {
-            console.warn(
-              "Auth error (app will continue in offline mode):",
-              error
-            );
-          }
+      async (firebaseUser) => {
+        if (firebaseUser) {
+          setUser(firebaseUser);
+          setUserId(firebaseUser.uid);
+          setPlayerName(firebaseUser.displayName || firebaseUser.email?.split("@")[0] || "Player");
+          setIsAuthenticated(true);
         } else {
-          setUserId(user.uid);
+          setUser(null);
+          setUserId(null);
+          setIsAuthenticated(false);
         }
+        setAuthLoading(false);
       },
       (error) => {
         console.warn(
           "Auth state change error (app will continue in offline mode):",
           error
         );
+        setAuthLoading(false);
       }
     );
 
     return () => unsubscribe();
   }, [auth]);
+
+  // Handle logout
+  const handleLogout = async () => {
+    if (!auth) return;
+    try {
+      await signOut(auth);
+      // Reset game state
+      setGrid(
+        Array(GRID_SIZE)
+          .fill(null)
+          .map(() => Array(GRID_SIZE).fill(null))
+      );
+      setScore(0);
+      setDeck(createDeck());
+      setHand([]);
+      setSelectedCard(null);
+      setDraggedCard(null);
+      setGameCode("");
+      setIsMultiplayer(false);
+      setGameEnded(false);
+      setShovelMode(false);
+      setCardToMove(null);
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
+  };
+
+  // Handle successful authentication
+  const handleAuthSuccess = () => {
+    // Auth state will be updated by onAuthStateChanged
+    // This callback is just for any UI transitions if needed
+  };
 
   // Load leaderboard
   useEffect(() => {
@@ -1128,39 +1185,34 @@ function App() {
   const playHoverSound = () => playTone(520, 0.08, 0.04, "sine");
   const playClickSound = () => playTone(320, 0.12, 0.06, "triangle");
 
-  return (
-    <div className="app">
-      {showNameInput ? (
-        <div className="name-input-modal">
-          <div className="modal-content">
-            <h1 className="game-title">🌾 Farm Grid Game 🌾</h1>
-            <p className="game-tagline">Pastel farm strategy on a 5x5 grid</p>
-            <h2>Enter Your Name</h2>
-            <input
-              type="text"
-              value={playerName}
-              onChange={(e) => setPlayerName(e.target.value)}
-              placeholder="Your name"
-              maxLength={20}
-              onKeyPress={(e) => {
-                if (e.key === "Enter" && playerName.trim()) {
-                  setShowNameInput(false);
-                }
-              }}
-            />
-            <button
-              onClick={() => {
-                if (playerName.trim()) {
-                  setShowNameInput(false);
-                }
-              }}
-              disabled={!playerName.trim()}
-            >
-              Start Playing
-            </button>
+  // Show loading state while checking auth
+  if (authLoading) {
+    return (
+      <div className="app">
+        <div className="auth-container">
+          <div className="auth-card">
+            <div className="auth-header">
+              <h1 className="game-title">🌾 Farm Grid Game 🌾</h1>
+              <p className="game-tagline">Loading...</p>
+            </div>
           </div>
         </div>
-      ) : (
+      </div>
+    );
+  }
+
+  // Show auth view for non-authenticated users
+  if (!isAuthenticated) {
+    return (
+      <div className="app">
+        <AuthView onAuthSuccess={handleAuthSuccess} />
+      </div>
+    );
+  }
+
+  // Show game interface for authenticated users
+  return (
+    <div className="app">
         <div className="game-container">
           <header className="game-header">
             <div className="score-display">
@@ -1178,6 +1230,15 @@ function App() {
                 </div>
               )}
             </div>
+            <div className="user-actions">
+              <button
+                onClick={handleLogout}
+                className="logout-button"
+                title="Logout"
+              >
+                🚪 Logout
+              </button>
+            </div>
           </header>
 
           <div className="tabs">
@@ -1194,6 +1255,22 @@ function App() {
               onClick={() => setActiveTab("leaderboard")}
             >
               Leaderboard
+            </button>
+            <button
+              className={`tab-btn ${
+                activeTab === "profile" ? "active" : ""
+              }`}
+              onClick={() => setActiveTab("profile")}
+            >
+              🔒 Profile
+            </button>
+            <button
+              className={`tab-btn ${
+                activeTab === "community" ? "active" : ""
+              }`}
+              onClick={() => setActiveTab("community")}
+            >
+              🌐 Community
             </button>
           </div>
 
@@ -1501,13 +1578,40 @@ function App() {
                   leaderboard.map((entry, index) => (
                     <div key={entry.id} className="leaderboard-item">
                       <span className="rank">#{index + 1}</span>
-                      <span className="name">{entry.playerName}</span>
+                      <span
+                        className="name clickable-name"
+                        onClick={() =>
+                          entry.userId &&
+                          setViewingProfile({
+                            userId: entry.userId,
+                            userName: entry.playerName,
+                          })
+                        }
+                        title={entry.userId ? "Click to view profile" : ""}
+                        style={{
+                          cursor: entry.userId ? "pointer" : "default",
+                        }}
+                      >
+                        {entry.playerName}
+                      </span>
                       <span className="score-value">{entry.score} pts</span>
                     </div>
                   ))
                 )}
               </div>
             </div>
+          )}
+
+          {activeTab === "profile" && <UserProfile />}
+
+          {activeTab === "community" && <PublicContent />}
+
+          {viewingProfile && (
+            <ViewProfile
+              userId={viewingProfile.userId}
+              userName={viewingProfile.userName}
+              onClose={() => setViewingProfile(null)}
+            />
           )}
 
           {showMultiplayerModal && (
@@ -1677,7 +1781,6 @@ function App() {
             </div>
           )}
         </div>
-      )}
     </div>
   );
 }
