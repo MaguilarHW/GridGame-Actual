@@ -1,16 +1,65 @@
-# React + Vite
+# 🌾 Farm Grid Game 🌾
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Pastel farm strategy game on a 5x5 grid built with React, Vite, and Electron.
 
-Currently, two official plugins are available:
+## Development
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### Install Dependencies
+```bash
+npm install
+```
 
-## React Compiler
+### Run Development Server
+```bash
+npm run dev
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Run Electron App (Development)
+```bash
+npm run electron:dev
+```
 
-## Expanding the ESLint configuration
+## Building for Distribution
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### Build Web App
+```bash
+npm run build
+```
+
+### Build Electron App (macOS DMG)
+```bash
+npm run electron:build:dmg
+```
+
+This will:
+1. Build the React/Vite app
+2. Package it as an Electron app
+3. Create a DMG file in the `release` directory
+
+The DMG file will be located at: `release/GridGame-1.0.0.dmg`
+
+### Build for Other Platforms
+
+**macOS only:**
+```bash
+npm run electron:build:mac
+```
+
+**All platforms:**
+```bash
+npm run electron:build
+```
+
+## Distribution
+
+After building, the DMG file can be distributed to users. They can:
+1. Download the DMG file
+2. Open it
+3. Drag the app to their Applications folder
+4. Launch the app from Applications
+
+## Notes
+
+- The app requires macOS to build DMG files
+- For Windows/Linux builds, use the appropriate platform-specific commands
+- Make sure to update the `version` in `package.json` before each release
