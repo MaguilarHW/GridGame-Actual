@@ -1,11 +1,12 @@
 :root {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   line-height: 1.5;
   font-weight: 400;
+  --grid-size: clamp(280px, 52vw, 520px);
 
   color-scheme: light;
-  color: #5D4037;
-  background-color: #E8F5E9;
+  color: #5d4037;
+  background-color: #e8f5e9;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -23,21 +24,27 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background: linear-gradient(135deg, #E8F5E9 0%, #F1F8E9 50%, #FFF9C4 100%);
+  background: linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 50%, #fff9c4 100%);
+  overflow-x: hidden;
 }
 
-h1, h2, h3, h4, h5, h6 {
-  color: #6B8E23;
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: #6b8e23;
 }
 
 a {
   font-weight: 500;
-  color: #81C784;
+  color: #81c784;
   text-decoration: inherit;
 }
 
 a:hover {
-  color: #66BB6A;
+  color: #66bb6a;
 }
 
 button {
